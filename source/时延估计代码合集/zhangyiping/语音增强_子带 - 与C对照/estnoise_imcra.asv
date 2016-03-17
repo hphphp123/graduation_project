@@ -1,0 +1,145 @@
+
+function parameters = estnoise_imcra(ns_ps,parameters);  %%输出参数为下一帧输入参数，本函数单帧计算
+n = parameters.n;
+len = parameters.len;
+gamma0 = parameters.gamma0;
+psi0 = parameters.psi0;
+alpha = parameters.alpha;
+beta = parameters.beta;
+b = parameters.b;           %平滑窗函数
+U = parameters.U;           %噪声估计总时段分为U个子窗
+V = parameters.V;           %每个子窗包含V帧
+Bmin = parameters.Bmin;     %最小噪声估计的偏差
+gamma = parameters.gamma;
+gamma1 = parameters.gamma1;
+GH1 = parameters.GH1;
+%Sf = parameters.Sf;
+Smin = parameters.Smin;
+S = parameters.S;
+S_tild = parameters.S_tild;
+Sf_tild = parameters.Sf_tild;
+Smin_tild = parameters.Smin_tild;
+Smin_sw = parameters.Smin_sw;
+Smin_sw_tild = parameters.Smin_sw_tild;
+stored_min = parameters.stored_min;
+stored_min_tild = parameters.stored_min_tild;
+u1 = parameters.u1;
+u2 = parameters.u2;
+j = parameters.j;
+alpha_d = parameters.alpha_d;
+alpha_s = parameters.alpha_s;
+eps_min=parameters.eps_min;
+
+noise_cap = parameters.noise_ps;   %无音补偿后估计噪声谱方差
+noise_tild = parameters.noise_tild; %估算噪声谱方差，下一帧计算本身时使用
+ 
+gamma_old=gamma;   %前一帧后验信噪比
+gamma = min(ns_ps./noise_cap,40);      %后验信噪比
+eps_cap=alpha*(GH1.^2).*gamma_old + (1-alpha)*max(gamma-1,0);   %先验信噪比，式3-63 
+eps_cap=max(eps_min,eps_cap);  % 控制先验信噪比大于 -25 dB？？
+v=gamma.*eps_cap./(1+eps_cap);
+% exp_int=expint(v); %R.Martin方法近似计算ei(v);
+% GH1=eps_cap.*exp(.5*exp_int)./(1+eps_cap); 
+       
+Sf(1)=ns_ps(1);   %带噪声能量谱的频域平滑
+Sf(end)=ns_ps(end);
+for f=2:len-1
+    Sf(f)=sum(b.*[ns_ps(f-1); ns_ps(f); ns_ps(f+1)]);   %带噪能量谱使用3阶hanning窗进行平滑
+end
+       
+S=alpha_s*S+(1-alpha_s)*Sf;  %公式2-41计算 递归平均计算平滑后带噪能量谱S(k,l)
+Smin=min(Smin,S);
+Smin_sw=min(Smin_sw,S);
+gamma_min=ns_ps./(Bmin*Smin);    %Bmin取为定值
+psi=S./(Bmin*Smin);              %公式2-44计算gamma_min 和 Psi
+I=zeros(len,1);
+index=find(gamma_min<gamma0 & psi<psi0);
+I(index)=1;                                    %公式2-47计算 I(k,l)，粗略判断有音无音
+for f=2:len-1
+    if (I(f-1)+I(f)+I(f+1))==0     %前后都为语音
+       Sf_tild(f)=S_tild(f);
+    else
+       Sf_tild(f)=sum(b.*[I(f-1); I(f); I(f+1)].*[ns_ps(f-1); ns_ps(f); ns_ps(f+1)])/sum(b.*[I(f-1); I(f); I(f+1)]); 
+    end                                                                   %公式2-50带噪能量谱频域平滑
+end
+if I(1)==0        
+   Sf_tild(1)=S_tild(1);
+   Sf_tild(end)=S_tild(end);
+else
+   Sf_tild(1)=ns_ps(1);
+   Sf_tild(end)=ns_ps(end);
+end
+
+S_tild=alpha_s*S_tild+(1-alpha_s)*Sf_tild;                              %公式2-51时域平滑
+Smin_tild=min(Smin_tild,S_tild);
+Smin_sw_tild=min(Smin_sw_tild,S_tild);
+gamma_min_tild=ns_ps./(Bmin*Smin_tild);
+psi_tild=S./(Bmin*Smin_tild);                                     
+q=zeros(len,1);                                                    %检验有音无音  
+index=find(gamma_min_tild<=1 & psi_tild<psi0);      %无音概率为1，有音概率为0
+index1=setdiff([1:len],index);    
+if (~isempty(index))
+   q(index)=1;
+end
+   index=find(gamma_min_tild>1 & gamma_min_tild<gamma1 & psi_tild<psi0);
+if (~isempty(index))
+   q(index)=(gamma1-gamma_min_tild(index))/(gamma1-1);             
+end
+%        p=1./(1+((q./(1-q)).*(1+eps_cap).*exp(-v)));
+p=zeros(len,1);                           %仅计算无音概率不为1部分，即可能有音部分
+if (~isempty(index1))
+   temp1 = q(index1)./(1-q(index1));
+   temp2 = 1 + eps_cap(index1);
+   temp3 = exp(-v(index1));
+   p(index1) = (1 + temp1.*temp2.*temp3).^-1;
+end
+%             p(index1)=1./(1+((q(index1)./(1-q(index1))).*(1+eps_cap(index1)).*exp(-v(index1))));    %公式2-34计算有音概率
+alpha_d_tild=alpha_d+(1-alpha_d)*p;                                 
+noise_tild=alpha_d_tild.*noise_tild+(1-alpha_d_tild).*ns_ps;        %噪声方差估计更新 
+
+nois_min=mean(noise_tild)/4;
+for i=1:len
+    if noise_tild(i) < nois_min;
+       noise_cap(i)=beta*noise_tild(i);                                          %噪声方差估计补偿因子（当值较低时）
+    else
+       noise_cap(i)=noise_tild(i); 
+    end
+end
+   
+j=j+1;
+if j==V
+   stored_min(:,u1)=Smin_sw;
+   u1=u1+1;if u1==U+1; u1=1;end
+   Smin=min(stored_min,[],2);    %计算每列中的最小值
+   Smin_sw=S;   %重新开始新的子窗最小值计算，赋值为当前带噪信号频域平滑后值
+   stored_min_tild(:,u2)=Smin_sw_tild;
+   u2=u2+1;if u2==U+1; u2=1;end
+   Smin_tild=min(stored_min_tild,[],2);
+   Smin_sw_tild=S_tild;
+   j=0;
+end
+ix=find(p>1 | q>1 | p<0 | q<0);
+if (~isempty(ix))
+    keyboard;
+end
+
+noise_ps = noise_cap;
+
+parameters.n = n+1;
+parameters.gamma = gamma;
+% parameters.GH1 = GH1;
+parameters.Sf = Sf;
+parameters.Smin = Smin;
+parameters.S = S;
+parameters.S_tild = S_tild;
+parameters.Smin_tild = Smin_tild;
+parameters.Smin_sw = Smin_sw;
+parameters.Smin_sw_tild = Smin_sw_tild;
+parameters.stored_min = stored_min;
+parameters.stored_min_tild = stored_min_tild;
+parameters.u1 = u1;
+parameters.u2 = u2;
+parameters.j = j;
+parameters.noise_tild = noise_tild;
+parameters.noise_ps = noise_ps;
+

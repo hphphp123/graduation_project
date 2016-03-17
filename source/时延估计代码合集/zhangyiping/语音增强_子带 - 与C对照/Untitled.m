@@ -1,0 +1,12 @@
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC_C.pcm','r');
+nsC1=fread(fid,'int16');
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC (2)_C.pcm','r');
+nsC2=fread(fid,'int16');
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC (3)_C.pcm','r');
+nsC3=fread(fid,'int16');
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC_matlab.pcm','r');
+nsM1=fread(fid,'int16');
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC (2)_matlab.pcm','r');
+nsM2=fread(fid,'int16');
+fid=fopen('E:\speech enhancement\ANR_Process\ANR_Process\test\capture_speech_KFC (3)_matlab.pcm','r');
+nsM3=fread(fid,'int16');
