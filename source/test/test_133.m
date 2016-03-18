@@ -5,9 +5,10 @@ close all;clc;clear all;
 s=s-mean(s);                   %消除直流分量
 s=s/max(abs(s));               %幅值归一化
 N=length(s);                   %语音信号长度
-noise1=wavread('d:\noisex-92\f16.wav');
-[x0,noise]=add_noisedata(s,noise1,fs,fs,0); %第一路添加白噪的带噪语音
-
+% noise1=wavread('d:\noisex-92\white.wav');
+snr=0;
+% [x0,noise]=add_noisedata(s,noise1,fs,fs,snr); %第一路添加白噪的带噪语音
+x0=s;
 
 %模拟另一个方向上的干扰信号，每个有一个相等的k个点的延迟，初始信干比为5dB，主瓣方向语音信号已对齐
 k=5; %延迟点数
@@ -16,16 +17,33 @@ xn=wavread('doct3.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
 xn=xn-mean(xn);
 xn=xn/max(abs(xn));
 xn=xn';
-[x1,noise1]=add_noisedata(x0,xn,fs,fs,0); %第一路添加干扰的带噪语音
+[x1,noise1]=add_noisedata(x0,xn,fs,fs,snr); %第一路添加干扰的带噪语音
 xn1=[r(1:k) xn(1:N-k)];
 xn1=xn1';
-[x2,noise2]=add_noisedata(x0,xn1,fs,fs,0); %第二路添加延迟干扰的带噪语音
+[x2,noise2]=add_noisedata(x0,xn1,fs,fs,snr); %第二路添加延迟干扰的带噪语音
 xn2=[r(1:2*k) xn(1:N-2*k)];
 xn2=xn2';
-[x3,noise3]=add_noisedata(x0,xn2,fs,fs,0); %第二路添加延迟干扰的带噪语音
+[x3,noise3]=add_noisedata(x0,xn2,fs,fs,snr); %第二路添加延迟干扰的带噪语音
 xn3=[r(1:3*k) xn(1:N-3*k)];
 xn3=xn3';
-[x4,noise4]=add_noisedata(x0,xn3,fs,fs,0); %第二路添加延迟干扰的带噪语音
+[x4,noise4]=add_noisedata(x0,xn3,fs,fs,snr); %第二路添加延迟干扰的带噪语音
+
+k1=3;
+r=wgn(1,N,-20); %产生-20dB高斯噪声
+xn=wavread('d:\noisex-92\f16.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
+xn=xn-mean(xn);
+xn=xn/max(abs(xn));
+xn=xn';
+[x1,noise1]=add_noisedata(x1,xn,fs,fs,snr); %第一路添加干扰的带噪语音
+xn1=[r(1:k1) xn(1:N-k1)];
+xn1=xn1';
+[x2,noise2]=add_noisedata(x2,xn1,fs,fs,snr); %第二路添加延迟干扰的带噪语音
+xn2=[r(1:2*k1) xn(1:N-2*k1)];
+xn2=xn2';
+[x3,noise3]=add_noisedata(x3,xn2,fs,fs,snr); %第二路添加延迟干扰的带噪语音
+xn3=[r(1:3*k1) xn(1:N-3*k1)];
+xn3=xn3';
+[x4,noise4]=add_noisedata(x4,xn3,fs,fs,snr); %第二路添加延迟干扰的带噪语音
 % sound(x0,fs);
 % sound(xn,fs);
 % sound(x1,fs);
@@ -33,7 +51,7 @@ xn3=xn3';
 % sound(x3,fs);
 % sound(x4,fs);
 
-%画出四路波形图
+% % 画出四路波形图
 % figure(1);
 % time=1:N;
 % subplot 211 ;
@@ -162,7 +180,7 @@ d=(x1+x2+x3+x4)/4;     %固定波束形成
 
 
 
-% %在固定波束形成一路添加维纳滤波器
+%在固定波束形成一路添加维纳滤波器
 % IS=.15; %无话段时间
 % output=WienerScalart96m_2(d,fs,IS,0.12);
 % d=output;
@@ -170,7 +188,7 @@ d=(x1+x2+x3+x4)/4;     %固定波束形成
 %自适应抵消模块，滤波器阶数为512
 B=[1,-1,0,0;0,1,-1,0;0,0,1,-1]
 u=0.001;
-sysorder=64;
+sysorder=7;
 N=4; 
 M=length(d);
 w1=zeros(sysorder,1);
@@ -191,27 +209,27 @@ for n=sysorder+1:M
     e(n)=d(n)-y(n);
     W=W+u*e(n)*Z;
 end
-figure(1)
-subplot 211;
-plot(s);title('目标语音信号');
-sound(s);pause(2);
-subplot 212;
-plot(xn(1:length(d)));title('干扰信号');
-sound(xn(1:length(d)));pause(2);
-% figure(2)
-subplot 211;
-plot(x1);
-sound(x1);title('第一路采集到的语音信号');pause(2);axis([0 2e4 min(x1) max(x1)]);
-subplot 212;
-plot(d);title('固定波束形成后信号');
-sound(d(1:M));pause(2);
-figure(3)
-subplot 211;
-plot(y);title('估计出来的干扰信号');
-sound(y);pause(2);
-subplot 212;
-plot(e);title('自适应波束形成后信号');axis([0 2.5e4 -1 1]);
-sound(e(1:M));pause(2);
+% figure(1)
+% subplot 211;
+% plot(s);title('目标语音信号');
+% sound(s);pause(2);
+% subplot 212;
+% plot(xn(1:length(d)));title('干扰信号');
+% sound(xn(1:length(d)));pause(2);
+% % figure(2)
+% subplot 211;
+% plot(x1);
+% sound(x1);title('第一路采集到的语音信号');pause(2);axis([0 2e4 min(x1) max(x1)]);
+% subplot 212;
+% plot(d);title('固定波束形成后信号');
+% sound(d(1:M));pause(2);
+% figure(3)
+% subplot 211;
+% plot(y);title('估计出来的干扰信号');
+% % sound(y);pause(2);
+% subplot 212;
+% plot(e);title('自适应波束形成后信号');axis([0 2.5e4 -1 1]);
+% sound(e(1:M));pause(2);
 % m=4;
 % Wc=[0.25;0.25;0.25;0.25];
 % wop=Wc;
@@ -235,6 +253,7 @@ sound(e(1:M));pause(2);
 % fwrite(fid,x1(1,:)*32767/3,'int16');
 % fclose all;
 snr0=SNR_singlech(s(1:M),e)           % 计算维纳滤波后的信噪比
+wavwrite(e,fs,'f16-0-0-general')
 snr1=SNR_singlech(s(1:M),d)
 snr2=SNR_singlech(s,x1)
     
