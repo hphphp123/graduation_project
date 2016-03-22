@@ -9,7 +9,7 @@ N=length(s);                   %语音信号长度
 noise1=wavread('d:\noisex-92\white.wav');
 noise2=wavread('d:\noisex-92\babble.wav');
 [x1,noise]=add_noisedata(s,noise1,fs,fs,-5); %第一路添加白噪的带噪语音
-[x2,noise]=add_noisedata(s,noise2,fs,fs,100); %第二路添加白噪的带噪语音
+[x2,noise]=add_noisedata(s,noise2,fs,fs,-5); %第二路添加白噪的带噪语音
 %x1和x2都是时延对齐后的信号；
 %
 %计算两通道的相干函数
@@ -70,7 +70,7 @@ end
 d=(y11+y22)/2;     %固定波束形成
 %d1=(x1+x2)/2;
 n=y11-y22;         %噪声信号
-%n1=x1-x2;
+n1=x1-x2;
 %自适应噪声抵消模块，使用归一化最小均方算法迭代进行噪声估计；
 
 u=0.001;
@@ -87,6 +87,26 @@ for i=M:N-1
     U1=u/var(i);
     w=w+U1.*e(i).*input2;
 end
+
+% B=[1,-1];
+% u=0.001;
+% sysorder=32;
+% N=4; 
+% M=length(d);
+% w1=zeros(sysorder,1);
+% y=zeros(1,sysorder);
+% W=[w1'];
+% d=d';
+% for n=sysorder+1:M
+%     X1=y11(n-sysorder+1:1:n);
+%     X2=y22(n-sysorder+1:1:n);
+%     X=[X1';X2'];
+%     Z=B*X;
+%     Y=W.*Z;
+%     y(n)=sum(Y(:));
+%     e(n)=d(n)-y(n);
+%     W=W+u*e(n)*Z;
+% end
 %u1=0.0001;var1=zeros(1,M);
 % for i=M:N
 %     input1=d1(i);
@@ -98,15 +118,17 @@ end
 %     w=w+U1.*(e1(i).*input2');
 % end
 % 
-
- snr1=SNR_singlech(s(1:N-1),d);fprintf(' snr1=%5.1f\n',snr1); 
- snr2=SNR_singlech(s(1:N-1),e);fprintf(' snr2=%5.1f\n',snr2);
+% d=d';e=e';
+ snr1=SNR_singlech(s(1:length(s)-1),d);fprintf(' snr1=%5.1f\n',snr1); 
+ snr2=SNR_singlech(s(1:length(s)-1),e);fprintf(' snr2=%5.1f\n',snr2);
 %  snr3=SNR_singlech(s,d1);fprintf(' snr3=%5.1f\n',snr3); 
 %  snr4=SNR_singlech(s,e1);fprintf(' snr4=%5.1f\n',snr4);
 
  sound(y11);
  pause(1)
  sound(e);
+ pause(1);
+ sound(yout);
 %  pause(1);
 %  sound(e1);
 % %  
