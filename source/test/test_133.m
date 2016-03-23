@@ -1,7 +1,7 @@
 %固定波束形成路加vad检测和维纳滤波，消除非相干噪声
 
 close all;clc;clear all;
-[s,fs,bits]=wavread('tone4.wav');                 %纯语音信号
+[s,fs,bits]=wavread('bluesky3.wav');                 %纯语音信号
 s=s-mean(s);                   %消除直流分量
 s=s/max(abs(s));               %幅值归一化
 N=length(s);                   %语音信号长度
@@ -13,7 +13,7 @@ x0=s;
 %模拟另一个方向上的干扰信号，每个有一个相等的k个点的延迟，初始信干比为5dB，主瓣方向语音信号已对齐
 k=3; %延迟点数
 r=wgn(1,N,-20); %产生-20dB高斯噪声
-xn=wavread('risesun.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
+xn=wavread('tone4.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
 xn=xn-mean(xn);
 xn=xn/max(abs(xn));
 xn=xn';
@@ -28,23 +28,23 @@ xn3=[r(1:3*k) xn(1:N-3*k)];
 xn3=xn3';
 [x4,noise4]=add_noisedata(x0,xn3,fs,fs,snr); %第二路添加延迟干扰的带噪语音
 % 
-% snr1=0;
-% k1=5;
-% r=wgn(1,N,-20); %产生-20dB高斯噪声
-% xnn=wavread('d:\noisex-92\f16.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
-% xnn=xnn-mean(xnn);
-% xnn=xnn/max(abs(xnn));
-% xnn=xnn';
-% [x1,noise1]=add_noisedata(x1,xnn,fs,fs,snr1); %第一路添加干扰的带噪语音
-% xnn1=[r(1:k1) xnn(1:N-k1)];
-% xnn1=xnn1';
-% [x2,noise2]=add_noisedata(x2,xnn1,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
-% xnn2=[r(1:2*k1) xnn(1:N-2*k1)];
-% xnn2=xnn2';
-% [x3,noise3]=add_noisedata(x3,xnn2,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
-% xnn3=[r(1:3*k1) xnn(1:N-3*k1)];
-% xnn3=xnn3';
-% [x4,noise4]=add_noisedata(x4,xnn3,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
+snr1=100;
+k1=5;
+r=wgn(1,N,-20); %产生-20dB高斯噪声
+xnn=wavread('d:\noisex-92\white.wav'); %干扰噪声，假设目标信号已对齐，干扰信号有延迟
+xnn=xnn-mean(xnn);
+xnn=xnn/max(abs(xnn));
+xnn=xnn';
+[x1,noise1]=add_noisedata(x1,xnn,fs,fs,snr1); %第一路添加干扰的带噪语音
+xnn1=[r(1:k1) xnn(1:N-k1)];
+xnn1=xnn1';
+[x2,noise2]=add_noisedata(x2,xnn1,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
+xnn2=[r(1:2*k1) xnn(1:N-2*k1)];
+xnn2=xnn2';
+[x3,noise3]=add_noisedata(x3,xnn2,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
+xnn3=[r(1:3*k1) xnn(1:N-3*k1)];
+xnn3=xnn3';
+[x4,noise4]=add_noisedata(x4,xnn3,fs,fs,snr1); %第二路添加延迟干扰的带噪语音
 % sound(x0,fs);
 % sound(xn,fs);
 % sound(x1-x2,fs);
@@ -261,15 +261,19 @@ for i=M:N-1
     X3=x3(i:-1:i-M+1);
     X4=x4(i:-1:i-M+1);
     X=[X1';X2';X3';X4'];
+%     x=[x1';x2';x3';x4'];
     Z=B*X;
+%     z=B*x;
     Y=w.*Z;
     yout(i)=sum(Y(:));
     e(i)=input1-yout(i);
 %     n(i)=sum(Z(:));
-%     var(i)=0.2*n(i)^2+0.8*var(i-1);
+%     var(i)=0.2*(z(1,i))^2+0.8*var(i-1);
 %     U1=u/var(i);
     w=w+u.*e(i).*Z;
 end
+
+
 % %自适应抵消模块，滤波器阶数为512
 % B=[1,-1,0,0;0,1,-1,0;0,0,1,-1]
 % u=0.001;
@@ -294,28 +298,89 @@ end
 %     e(n)=d(n)-y(n);
 %     W=W+u*e(n)*Z;
 % end
-figure(1)
-subplot 211;
-plot(s);title('目标语音信号');
-sound(s);pause(2);
-subplot 212;
-plot(xn(1:length(d)));title('干扰信号');
-sound(xn(1:length(d)));pause(2);
-figure(2)
-subplot 211;
-plot(x1);
-sound(x1);title('第一路采集到的语音信号');pause(2);axis([0 2e4 min(x1) max(x1)]);
-subplot 212;
-plot(d);title('固定波束形成后信号');
-sound(d);pause(2);
-figure(3)
-subplot 211;
-plot(yout);title('估计出来的干扰信号');
-sound(yout);pause(2);
-subplot 212;
-plot(e);title('自适应波束形成后信号');
-sound(e);pause(2);
-wavwrite(e,fs,'none-5');
+% figure(1)
+% subplot 211;
+% plot(s);title('目标语音信号');
+% sound(s);pause(2);
+% subplot 212;
+% plot(xn(1:length(d)));title('干扰信号');
+% sound(xn(1:length(d)));pause(2);
+% figure(2)
+% subplot 211;
+% plot(x1);
+% sound(x1);title('第一路采集到的语音信号');pause(2);axis([0 2e4 min(x1) max(x1)]);
+% subplot 212;
+% plot(d);title('固定波束形成后信号');
+% sound(d);pause(2);
+% figure(3)
+% subplot 211;
+% plot(yout);title('估计出来的干扰信号');
+% sound(yout);pause(2);
+% subplot 212;
+% plot(e);title('自适应波束形成后信号');
+% sound(e);pause(2);
+% % wavwrite(e,fs,'none-5');
+
+
+N=4;                      %the number of the sensors
+L=32;                     %the number of reference filter laps
+d0=0.04;                   %the spacing the array 
+c=340;                    %the speed of sound
+f_l=200;                  %the lowest frequency
+f_u=8000;                 %the highest frequency
+step1=10;
+f=[f_l:step1:f_u];           %the signal frequency band
+fs=2*f_u;                 %the sampling frequency
+Ts=1/fs;                  %the sampling period
+omega=2*pi*f/fs;             %the signal anglular frequency
+lambda_u=c/f_u;           %the wavelength of the highest frequency
+p=zeros(1,N);             %the position of each sensor
+step2=180;
+theta=[0:pi/step2:pi];    %the angle
+thetaT=pi/2;              %the steered signal angle
+%d2lambda=;                %d to lambda
+Theta_p1=70/180*pi;
+Theta_p2=110/180*pi;
+%Omega_p=
+Theta_s1=pi/3;
+Theta_s2=2*pi/3;
+%Omega_s=
+alpha=1;
+
+
+for(l=1:L)
+    e1(l,:)=exp(-j*(l-1)*omega);
+end
+
+for(n=1:N)
+    d(n)=d0*(n-1);
+    tau(n,:)=d(n)*cos(theta)*fs/c;
+end
+for n=1:N
+    C(:,n*L-L+1:n*L)=eye(L);
+end
+b=zeros(L,1);
+b(1)=1;
+w1=reshape(w,(N-1)*l,1);
+A=[0.25,0.25,0.25,0.25];
+C=kron(A,[1,1,1]);
+for(k=1:(f_u-f_l)/step1+1)%omega
+    %disp(k);
+    for(i=1:step2+1)%theta
+        %disp(i);
+        for(n=1:N-1)
+            v(n*L-L+1:n*L,i)=e1(:,k)*exp(-j*omega(k)*tau(n,i));                       %the array manifold
+        end
+        B1(k,i)=w1'*v(:,i);
+    end
+end
+theta=[0:180];
+[theta,f]=meshgrid(theta,f);
+
+figure(1);
+mesh(theta,f,20*log10(abs(B1)));
+axis([0,180,f_l,f_u,-60,0]);
+
 % m=4;
 % Wc=[0.25;0.25;0.25;0.25];
 % wop=Wc;
@@ -341,10 +406,11 @@ wavwrite(e,fs,'none-5');
 % 下面为后wiener滤波
 e=e';
 snr0=SNR_singlech(s(1:length(e)),e)           % 计算维纳滤波后的信噪比
-wavwrite(e,fs,'f16-0-0-general')
+% wavwrite(e,fs,'f16-0-0-general')
 snr1=SNR_singlech(s(1:length(d)),d)
 snr2=SNR_singlech(s(1:length(x1)),x1)
-    
+sound(x1);
+sound(e);
 
 % 
 % n=y11-y22;         %噪声信号
